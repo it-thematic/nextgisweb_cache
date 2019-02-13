@@ -42,7 +42,7 @@ class CacheComponent(Component):
                         filename=join(self.settings['path'], '{}.mbtiles'.format(resource_id))
                     ),
                     sources=list(),
-                    grids=list('GLOBAL_WEBMERCATOR', ),
+                    grids=list(('GLOBAL_WEBMERCATOR', )),
                     bulk_meta_tiles=True,
                     link_single_color_images=True,
                 )
