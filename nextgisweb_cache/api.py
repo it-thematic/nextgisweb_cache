@@ -4,6 +4,7 @@ from __future__ import absolute_import
 from StringIO import StringIO
 
 from mapproxy.cache.tile import Tile
+from mapproxy.image import ImageSource
 from nextgisweb.env import env
 from nextgisweb.render.api import tile as render_tile
 from nextgisweb.resource import DataScope, Resource
@@ -43,8 +44,8 @@ def cache(request):
                 buf = StringIO(response.body)
                 buf.seek(0)
                 source = Image.open(buf)
-                tile.source = source
-                tile.cacheable = True
+                tile.source = ImageSource(source, cacheable=True)
+                tile.cacheable = tile.source.cacheable
                 tile_manager.cache.store_tile(tile)
 
             if not aimg:
