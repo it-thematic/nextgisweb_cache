@@ -25,9 +25,8 @@ def cache(request):
     x = int(request.GET['x'])
     y = int(request.GET['y'])
 
-    p_resource = map(int, filter(None, request.GET['resource'].split(',')))
+    p_resource = request.GET['resource'].split(',')
     aimg = None
-
     for resource_id in p_resource:
         resource_proxy = env.cache.get_proxy(resource_id)
         caches = resource_proxy.caches[resource_id].caches()
@@ -37,8 +36,11 @@ def cache(request):
             tile_manager.cache.load_tile(tile)
             # Если тайл не содержится в кэше
             if tile.coord is not None and not tile_manager.cache.is_cached(tile):
+                env.cache.logger.info('Tile from source')
                 response = render_tile(request)
-                tile.source = response
+                env.cache.logger.info('Save new tile to cache')
+                source = Image.open(response.body_file)
+                tile.source = source
 
             if not aimg:
                 aimg = tile.source

@@ -31,6 +31,7 @@ class CacheComponent(Component):
             self.logger.warn(_('Cache store in temporary directory!'))
             self.settings['path'] = mkdtemp(prefix='cache_')
 
+        resource_id = '{}'.format(resource_id)
         if resource_id in self.proxies.keys():
             return self.proxies[resource_id]
 
