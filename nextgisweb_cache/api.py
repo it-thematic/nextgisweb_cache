@@ -8,6 +8,7 @@ from nextgisweb.env import env
 from nextgisweb.render.api import tile as render_tile
 from nextgisweb.resource import DataScope, Resource
 from PIL import Image
+from pyramid.response import Response
 
 
 PD_READ = DataScope.read
@@ -39,7 +40,9 @@ def cache(request):
                 env.cache.logger.info('Tile from source')
                 response = render_tile(request)
                 env.cache.logger.info('Save new tile to cache')
-                source = Image.open(response.body_file)
+                buf = StringIO(response.body)
+                buf.seek(0)
+                source = Image.open(buf)
                 tile.source = source
 
             if not aimg:
@@ -50,12 +53,14 @@ def cache(request):
                 except ValueError:
                     env.cache.logger.error('Ошибка объединения очередного тайла')
 
-            if aimg is None:
-                aimg = Image.new('RGBA', (256, 256))
+    if aimg is None:
+        aimg = Image.new('RGBA', (256, 256))
 
-            buf = StringIO()
-            aimg.save(buf, 'png')
-            buf.seek(0)
+    buf = StringIO()
+    aimg.save(buf, 'png')
+    buf.seek(0)
+
+    return Response(body_file=buf, content_type=b'image/png')
 
 
 def setup_pyramid(comp, config):
