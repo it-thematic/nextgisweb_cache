@@ -44,6 +44,8 @@ def cache(request):
                 buf.seek(0)
                 source = Image.open(buf)
                 tile.source = source
+                tile.cacheable = True
+                tile_manager.cache.store_tile(tile)
 
             if not aimg:
                 aimg = tile.source
