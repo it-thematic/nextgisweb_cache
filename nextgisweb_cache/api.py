@@ -24,13 +24,12 @@ def cache(request):
     z = int(request.GET['z'])
     x = int(request.GET['x'])
     y = int(request.GET['y'])
-    render_type = request.GET['render_type']
 
     p_resource = map(int, filter(None, request.GET['resource'].split(',')))
     aimg = None
 
     for resource_id in p_resource:
-        resource_proxy = env.cache.get_proxy[resource_id]
+        resource_proxy = env.cache.get_proxy(resource_id)
         caches = resource_proxy.caches[resource_id].caches()
         grid, extent, tile_manager = caches[0]
         with tile_manager.session():
