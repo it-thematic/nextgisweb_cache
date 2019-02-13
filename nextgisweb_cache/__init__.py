@@ -15,13 +15,6 @@ class CacheComponent(Component):
 
     def initialize(self):
         super(CacheComponent, self).initialize()
-
-        if 'path' not in self.settings['path']:
-            self.settings['path'] = env.core.settings.get('sdir', None)
-        if not self.settings['path']:
-            self.logger.warn(_('Cache store in temporary directory!'))
-            self.settings['path'] = mkdtemp(prefix='cache_')
-
         self.proxies = dict()
 
     def get_proxy(self, resource_id):
@@ -32,6 +25,12 @@ class CacheComponent(Component):
         :return: экземпляр класса кэша для конкретного ресурса
         :rtype: ProxyConfiguration
         """
+        if 'path' not in self.settings:
+            self.settings['path'] = env.core.settings.get('sdir', None)
+        if not self.settings['path']:
+            self.logger.warn(_('Cache store in temporary directory!'))
+            self.settings['path'] = mkdtemp(prefix='cache_')
+
         if resource_id in self.proxies.keys():
             return self.proxies[resource_id]
 
