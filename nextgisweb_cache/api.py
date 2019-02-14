@@ -6,12 +6,14 @@ from StringIO import StringIO
 from mapproxy.cache.tile import Tile, TileCreator, TileManager
 from mapproxy.image import BlankImageSource, Image, ImageSource
 from mapproxy.image.opts import ImageOptions
+from mapproxy.service.tile import TileServiceGrid
 
 from nextgisweb.env import env
 from nextgisweb.render.api import tile as render_tile
 from nextgisweb.resource import DataScope, Resource
 
 from pyramid.response import Response
+from pyramid.exceptions import HTTPBadRequest
 
 
 PD_READ = DataScope.read
@@ -30,7 +32,7 @@ class TileCreatorEx(TileCreator):
                 response = render_tile(self.request)  # type: Response
                 buf = StringIO(response.body)
                 buf.seek(0)
-                image = Image.Image.open(buf)
+                image = Image.open(buf)
                 source = ImageSource(image, cacheable=True)
                 if not source:
                     return []
@@ -64,6 +66,21 @@ def cache(request):
             return True
         return tile_manager.cache.is_cached(tile)
 
+    def internal_tile_coord(grid, tile, use_profiles):
+        """
+        Преобразование координат к правильному виду
+
+        :param TileServiceGrid grid: параметры тайловой сетки
+        :param tuple[int, int, int] tile: координаты тайла
+        :param bool use_profiles:
+        :return:
+        :rtype: tuple[int, int, int]
+        """
+        tile_coord = grid.internal_tile_coord(tile, use_profiles)
+        if tile_coord is None:
+            raise HTTPBadRequest('Недопустимые значения тайловых координат')
+        return grid.flip_tile_coord(tile_coord)
+
     z = int(request.GET['z'])
     x = int(request.GET['x'])
     y = int(request.GET['y'])
@@ -75,12 +92,13 @@ def cache(request):
         caches = resource_proxy.caches[resource_id].caches()
         tile_manager = None  # type: TileManager
         grid, extent, tile_manager = caches[0]
-        tile = Tile(z, x, y)  # type: Tile
+        tile_coord = internal_tile_coord(grid, (z, x, y), True)
+        tile = Tile(tile_coord)  # type: Tile
         with tile_manager.session():
             # Попытка загрузки тайла из кэша
             tile_manager.cache.load_tile(tile, with_metadata=True)
             if tile.coord is not None and not is_cached(tile_manager, tile):
-                creator = TileCreatorEx(tile_manager, dimensions={})
+                creator = TileCreatorEx(tile_manager, dimensions={}, request=request)
                 created_tiles = creator.create_tiles([tile])
                 for created_tile in created_tiles:
                     if created_tile.coord == tile.coord:
