@@ -116,10 +116,10 @@ def cache(request):
                             tile.source = img.as_buffer().read()
 
         if not aimg:
-            aimg = tile.source
+            aimg = tile.source.as_image()
         else:
             try:
-                aimg = Image.alpha_composite(aimg, tile.source)
+                aimg = Image.alpha_composite(aimg, tile.source.as_image())
             except ValueError:
                 env.cache.logger.error('Ошибка объединения очередного тайла')
 
