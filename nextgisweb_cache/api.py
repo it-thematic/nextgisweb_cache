@@ -3,8 +3,9 @@ from __future__ import absolute_import
 
 from StringIO import StringIO
 
-from mapproxy.cache.tile import Tile
-from mapproxy.image import Image, ImageSource
+from mapproxy.cache.tile import Tile, TileCreator, TileManager
+from mapproxy.image import BlankImageSource, Image, ImageSource
+from mapproxy.image.opts import ImageOptions
 
 from nextgisweb.env import env
 from nextgisweb.render.api import tile as render_tile
@@ -17,7 +18,52 @@ PD_READ = DataScope.read
 sett_name = 'permissions.disable_check.rendering'
 
 
+class TileCreatorEx(TileCreator):
+
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop('request')
+        super(TileCreatorEx, self).__init__(*args, **kwargs)
+
+    def _create_single_tile(self, tile):
+        with self.tile_mgr.lock(tile):
+            if not self.is_cached(tile):
+                response = render_tile(self.request)  # type: Response
+                buf = StringIO(response.body)
+                buf.seek(0)
+                image = Image.Image.open(buf)
+                source = ImageSource(image, cacheable=True)
+                if not source:
+                    return []
+                if self.tile_mgr.image_opts != source.image_opts:
+                    # call as_buffer to force conversion into cache format
+                    source.as_buffer(self.tile_mgr.image_opts)
+                source.image_opts = self.tile_mgr.image_opts
+                tile.source = source
+                tile.cacheable = source.cacheable
+                tile = self.tile_mgr.apply_tile_filter(tile)
+                if source.cacheable:
+                    self.cache.store_tile(tile)
+            else:
+                self.cache.load_tile(tile)
+        return [tile]
+
+
 def cache(request):
+
+    def is_cached(tile_manager, tile):
+        """
+        Проверка тайла в кэше
+        :param TileManager tile_manager:
+        :param Tile tile:
+        :return:
+        :rtype: bool
+        """
+        if isinstance(tile, tuple):
+            tile = Tile(tile)
+        if tile.coord is None:
+            return True
+        return tile_manager.cache.is_cached(tile)
+
     z = int(request.GET['z'])
     x = int(request.GET['x'])
     y = int(request.GET['y'])
@@ -27,29 +73,23 @@ def cache(request):
     for resource_id in p_resource:
         resource_proxy = env.cache.get_proxy(resource_id)
         caches = resource_proxy.caches[resource_id].caches()
+        tile_manager = None  # type: TileManager
         grid, extent, tile_manager = caches[0]
-        tile = Tile((z, x, y))  # type: Tile
         with tile_manager.session():
-            with tile_manager.lock(tile):
-                # Загрузка тайла из кэша
-                tile_manager.cache.load_tile(tile)
-                # Если тайл не содержится в кэше
-                if tile.coord is not None and not tile_manager.cache.is_cached(tile):
-                    env.cache.logger.debug('Тайла нет в кэше. Запрос из истчника (component/tile)')
-                    response = render_tile(request)
-                    env.cache.logger.debug('Тайл из источника получен. Сохранение в кэш.')
-
-                    buf = StringIO(response.body)
-                    buf.seek(0)
-                    source = ImageSource(Image.open(buf), cacheable=True)  # type: ImageSource
-                    source.as_buffer(tile_manager.image_opts)
-                    source.image_opts = tile_manager.image_opts
-                    print source
-                    tile.source = source
-                    tile.cacheable = source.cacheable
-                    tile = tile_manager.apply_tile_filter(tile)
-                    if source.cacheable:
-                        tile_manager.cache.store_tile(tile)
+            tile = Tile(z, x, y)  # type: Tile
+            # Попытка загрузки тайла из кэша
+            tile_manager.cache.load_tile(tile, with_metadata=True)
+            if tile.coord is not None and not is_cached(tile_manager, tile):
+                creator = TileCreatorEx(tile_manager, dimensions={})
+                created_tiles = creator.create_tiles([tile])
+                for created_tile in created_tiles:
+                    if created_tile.coord == tile.coord:
+                        tile = created_tile
+                        if tile.source is None:
+                            img = BlankImageSource(size=grid.tile_size,
+                                                   image_opts=ImageOptions(format=format, transparent=True)
+                                                   )
+                            tile.source = img.as_buffer().read()
 
         if not aimg:
             aimg = tile.source
