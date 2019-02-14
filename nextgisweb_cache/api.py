@@ -75,8 +75,8 @@ def cache(request):
         caches = resource_proxy.caches[resource_id].caches()
         tile_manager = None  # type: TileManager
         grid, extent, tile_manager = caches[0]
+        tile = Tile(z, x, y)  # type: Tile
         with tile_manager.session():
-            tile = Tile(z, x, y)  # type: Tile
             # Попытка загрузки тайла из кэша
             tile_manager.cache.load_tile(tile, with_metadata=True)
             if tile.coord is not None and not is_cached(tile_manager, tile):
