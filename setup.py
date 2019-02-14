@@ -15,7 +15,9 @@ entry_points = {
         'nextgisweb_cache = nextgisweb_cache:pkginfo',
     ],
 
-    'nextgisweb.amd_packages': [],
+    'nextgisweb.amd_packages': [
+        'nextgisweb_cache = nextgisweb_cache:amd_packages'
+    ],
 
 }
 
