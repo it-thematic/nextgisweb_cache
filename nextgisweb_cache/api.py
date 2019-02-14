@@ -26,6 +26,9 @@ class TileCreatorEx(TileCreator):
         self.request = kwargs.pop('request')
         super(TileCreatorEx, self).__init__(*args, **kwargs)
 
+    def create_tiles(self, tiles):
+        return self._create_single_tiles(tiles)
+
     def _create_single_tile(self, tile):
         with self.tile_mgr.lock(tile):
             if not self.is_cached(tile):
@@ -34,6 +37,7 @@ class TileCreatorEx(TileCreator):
                 buf.seek(0)
                 image = Image.open(buf)
                 source = ImageSource(image, cacheable=True)
+                print source.as_image()
                 if not source:
                     return []
                 if self.tile_mgr.image_opts != source.image_opts:
@@ -77,9 +81,9 @@ def cache(request):
         :rtype: tuple[int, int, int]
         """
         grid_service = TileServiceGrid(tile_manager.grid)  # type: TileServiceGrid
-        coord = grid_service.internal_tile_coord(tile, use_profiles)
+        coord = grid_service.internal_tile_coord(tile_coord, use_profiles)
         if coord is None:
-            raise HTTPBadRequest('Недопустимые значения тайловых координат')
+            raise HTTPBadRequest(b'Недопустимые значения тайловых координат')
         return grid_service.flip_tile_coord(coord)
 
     z = int(request.GET['z'])
@@ -93,11 +97,12 @@ def cache(request):
         caches = resource_proxy.caches[resource_id].caches()
         tile_manager = None  # type: TileManager
         grid, extent, tile_manager = caches[0]
-        tile_coord = internal_tile_coord(grid, (z, x, y), True)
+        tile_coord = internal_tile_coord(tile_manager, (x, y, z), True)
         tile = Tile(tile_coord)  # type: Tile
         with tile_manager.session():
             # Попытка загрузки тайла из кэша
             tile_manager.cache.load_tile(tile, with_metadata=True)
+            print
             if tile.coord is not None and not is_cached(tile_manager, tile):
                 creator = TileCreatorEx(tile_manager, dimensions={}, request=request)
                 created_tiles = creator.create_tiles([tile])
