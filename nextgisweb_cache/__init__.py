@@ -25,15 +25,15 @@ class CacheComponent(Component):
         :return: экземпляр класса кэша для конкретного ресурса
         :rtype: ProxyConfiguration
         """
+        resource_id = '{}'.format(resource_id)
+        if resource_id in self.proxies.keys():
+            return self.proxies[resource_id]
+
         if 'path' not in self.settings:
             self.settings['path'] = env.core.settings.get('sdir', None)
         if not self.settings['path']:
             self.logger.warn(_('Cache store in temporary directory!'))
             self.settings['path'] = mkdtemp(prefix='cache_')
-
-        resource_id = '{}'.format(resource_id)
-        if resource_id in self.proxies.keys():
-            return self.proxies[resource_id]
 
         conf = dict(
             caches={
