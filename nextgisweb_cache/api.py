@@ -37,7 +37,6 @@ class TileCreatorEx(TileCreator):
                 buf.seek(0)
                 image = Image.open(buf)
                 source = ImageSource(image, cacheable=True)
-                print source.as_image()
                 if not source:
                     return []
                 if self.tile_mgr.image_opts != source.image_opts:
