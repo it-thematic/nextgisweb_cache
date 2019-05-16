@@ -85,13 +85,24 @@ def cache(request):
             raise HTTPBadRequest(b'Недопустимые значения тайловых координат')
         return grid_service.flip_tile_coord(coord)
 
+    setting_disable_check = request.env.core.settings.get(sett_name, 'false').lower()
+    if setting_disable_check in ('true', 'yes', '1'):
+        setting_disable_check = True
+    else:
+        setting_disable_check = False
+
     z = int(request.GET['z'])
     x = int(request.GET['x'])
     y = int(request.GET['y'])
 
-    p_resource = request.GET['resource'].split(',')
+    p_resource = map(int, filter(None, request.GET['resource'].split(',')))
+
     aimg = None
     for resource_id in p_resource:
+        obj = Resource.filter_by(id=resource_id).one()
+        if not setting_disable_check:
+            request.resource_permission(PD_READ, obj)
+        
         resource_proxy = env.cache.get_proxy(resource_id)
         caches = resource_proxy.caches[resource_id].caches()
         tile_manager = None  # type: TileManager
