@@ -25,7 +25,6 @@ class CacheComponent(Component):
         :return: экземпляр класса кэша для конкретного ресурса
         :rtype: ProxyConfiguration
         """
-        resource_id = '{}'.format(resource_id)
         if resource_id in self.proxies.keys():
             return self.proxies[resource_id]
 

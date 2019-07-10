@@ -95,7 +95,7 @@ def cache(request):
     x = int(request.GET['x'])
     y = int(request.GET['y'])
 
-    p_resource = map(int, filter(None, request.GET['resource'].split(',')))
+    p_resource = map(None, filter(None, request.GET['resource'].split(',')))
 
     aimg = None
     for resource_id in p_resource:
@@ -131,13 +131,13 @@ def cache(request):
             try:
                 aimg = Image.alpha_composite(aimg, tile.source.as_image())
             except ValueError:
-                env.cache.logger.error('Ошибка объединения очередного тайла')
+                env.cache.logger.error(b'Ошибка объединения очередного тайла')
 
     if aimg is None:
-        aimg = Image.new('RGBA', (256, 256))
+        aimg = Image.new(b'RGBA', (256, 256))
 
     buf = StringIO()
-    aimg.save(buf, 'png')
+    aimg.save(buf, b'png')
     buf.seek(0)
 
     return Response(body_file=buf, content_type=b'image/png')
